@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evaluación de Competencias y Ajuste al Cargo</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #004481;
+            --secondary-color: #f4f7f6;
+            --text-color: #333;
+            --border-color: #ccc;
+            --danger: #dc3545;
+            --success: #28a745;
+            --highlight: #e9ecef;
+            --soft-color: #17a2b8;
+        }
+
+        * { box-sizing: border-box; }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--highlight); color: var(--text-color); margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: var(--primary-color); margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #666; font-size: 0.95rem; margin-bottom: 25px; }
+
+        fieldset { border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 25px; background-color: var(--secondary-color); }
+        legend { font-weight: bold; color: var(--primary-color); background: white; padding: 4px 12px; border: 1px solid var(--border-color); border-radius: 4px; }
+        .legend-soft { color: var(--soft-color); }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        label { font-weight: 600; margin-bottom: 6px; font-size: 0.9em; color: #444; }
+        input[type="text"], input[type="date"], textarea, select { padding: 10px; border: 1px solid #cfcfcf; border-radius: 6px; font-size: 0.95em; background: white; }
+
+        .competencia-item { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 15px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #e0e0e0; gap: 10px; }
+        .competencia-item input[type="text"] { flex: 1; border: 1px solid #ccc; font-size: 0.9em; }
+        .competencia-item select { width: 160px; cursor: pointer; }
+        
+        .btn-eliminar { background: var(--danger); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-agregar { background: var(--success); color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+
+        .firmas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .firma-container { display: flex; flex-direction: column; align-items: center; background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
+        canvas.firma-pad { border: 2px dashed var(--primary-color); border-radius: 8px; background-color: #fff; cursor: crosshair; touch-action: none; width: 100%; max-width: 350px; height: 150px; }
+        
+        .btn-limpiar { background-color: #6c757d; color: white; border: none; padding: 8px 15px; border-radius: 4px; margin-top: 10px; cursor: pointer; font-size: 0.85em; }
+        .btn-principal { width: 100%; padding: 15px; background-color: var(--primary-color); color: white; border: none; border-radius: 6px; font-size: 1.1em; font-weight: bold; cursor: pointer; margin-top: 20px; transition: 0.3s; }
+        .btn-principal:hover { background-color: #003366; }
+
+        .leyenda-calificacion { font-size: 0.85em; color: #666; margin-bottom: 15px; padding: 10px; background: #e8f0fe; border-radius: 5px; border-left: 4px solid var(--primary-color); }
+        #chartContainer { width: 600px; height: 600px; position: absolute; left: -9999px; top: -9999px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Evaluación de Competencias y Ajuste</h1>
+    <div class="subtitle">Personal Operativo - Periodo de Prueba</div>
+
+    <form id="formularioEvaluacion">
+        <fieldset>
+            <legend>Información General</legend>
+            <div class="form-grid">
+                <div class="form-group"><label>Fecha de Ingreso:</label><input type="date" id="fechaIngreso" required /></div>
+                <div class="form-group"><label>Fecha de Evaluación:</label><input type="date" id="fechaEval" required /></div>
+                <div class="form-group"><label>Nombre del Colaborador:</label><input type="text" id="nombreColaborador" required /></div>
+                <div class="form-group"><label>Cargo Evaluado:</label><input type="text" id="cargo" value="Asistente de Fabricación y Logística" required /></div>
+                <div class="form-group full-width"><label>Nombre del Jefe Directo (Evaluador):</label><input type="text" id="nombreJefe" required /></div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Matriz de Competencias Técnicas y de Proceso</legend>
+            <div class="leyenda-calificacion">
+                <strong>Escala:</strong> 1 = No maneja el proceso | 2 = Requiere mucha asistencia | 3 = Supervisión media | 4 = Manejo autónomo | 5 = Lo maneja perfectamente.
+            </div>
+            <div id="contenedorCompetencias"></div>
+            <button type="button" class="btn-agregar" onclick="agregarCompetenciaTecnica('')">+ Añadir Nueva Competencia</button>
+        </fieldset>
+
+        <fieldset style="background-color: #f0fcfc; border-color: #bee5eb;">
+            <legend class="legend-soft">Habilidades Blandas y Actitud (Psicosocial)</legend>
+            <div class="leyenda-calificacion" style="background: #fff; border-left-color: var(--soft-color);">
+                <strong>Escala:</strong> 1 = Deficiente | 2 = Regular | 3 = Aceptable | 4 = Bueno | 5 = Excelente.
+            </div>
+            <div id="contenedorBlandas"></div>
+            <button type="button" class="btn-agregar" onclick="agregarHabilidadBlanda('')" style="background: var(--soft-color);">+ Añadir Habilidad Blanda</button>
+        </fieldset>
+
+        <fieldset>
+            <legend>Validación y Firmas</legend>
+            <div class="firmas-grid">
+                <div class="firma-container">
+                    <label>Firma Evaluador</label>
+                    <canvas id="padJefe" class="firma-pad" width="350" height="150"></canvas>
+                    <button type="button" class="btn-limpiar" onclick="limpiarFirma(ctxJefe, canvasJefe)">Limpiar Firma</button>
+                </div>
+                <div class="firma-container">
+                    <label>Firma Colaborador</label>
+                    <canvas id="padColaborador" class="firma-pad" width="350" height="150"></canvas>
+                    <button type="button" class="btn-limpiar" onclick="limpiarFirma(ctxColaborador, canvasColaborador)">Limpiar Firma</button>
+                </div>
+            </div>
+        </fieldset>
+
+        <button type="submit" class="btn-principal">Generar Análisis y Descargar PDF</button>
+    </form>
+</div>
+
+<div id="chartContainer"><canvas id="radarChart"></canvas></div>
+
+<script>
+    let logoBase64_PDF = "";
+    const ctxRadar = document.getElementById('radarChart').getContext('2d');
+    let radarChart;
+
+    const competenciasTecnicas = [
+        "Adosado: Respeta especificaciones anatómicas, márgenes y tolerancias.",
+        "Encerado: Mantiene grosores y volumen de la orden sin deformaciones.",
+        "Enmuflado: Prepara proporciones correctas y ubica bebederos sin porosidad.",
+        "Inyección PEEK: Controla temperatura, tiempo y presión del equipo.",
+        "Moldeo PMMA: Garantiza homogeneidad, curado completo y cero burbujas.",
+        "Acabado: Logra textura sin alterar dimensiones críticas ni sobrecalentar.",
+        "Desinfección: Aplica protocolos previniendo contaminación cruzada.",
+        "Trazabilidad: Registra lotes y parámetros en tiempo real y sin enmendaduras.",
+        "Equipos: Mantiene limpieza y verifica estado antes de iniciar producción."
+    ];
+
+    const habilidadesBlandas = [
+        "Comunicación: Reporta fallas e interactúa claramente.",
+        "Trabajo en Equipo: Colabora en la línea de producción.",
+        "Receptividad: Acepta críticas y corrige sus errores.",
+        "Manejo de Presión: Trabaja bien bajo urgencias.",
+        "Cultura de Calidad: Respeta estrictamente las normas."
+    ];
+
+    async function cargarLogoBase64(url) {
+        return new Promise((resolve) => {
+            const img = new Image(); img.crossOrigin = "anonymous";
+            img.onload = () => { const canvas = document.createElement("canvas"); canvas.width = img.naturalWidth; canvas.height = img.naturalHeight; canvas.getContext("2d").drawImage(img, 0, 0); resolve(canvas.toDataURL("image/png")); };
+            img.onerror = () => resolve(null); img.src = url;
+        });
+    }
+    cargarLogoBase64("./logo.png.jpg").then(base64 => { logoBase64_PDF = base64; });
+
+    function agregarCompetenciaTecnica(nombre) {
+        const contenedor = document.getElementById("contenedorCompetencias");
+        const div = document.createElement("div"); div.className = "competencia-item tecnica-item";
+        div.innerHTML = `
+            <input type="text" class="comp-nombre" value="${nombre}" placeholder="Describa la competencia técnica" required />
+            <select class="comp-valor" required>
+                <option value="" disabled selected>Calificación</option>
+                <option value="1">1 - No lo maneja</option><option value="2">2 - Requiere asistencia</option>
+                <option value="3">3 - Supervisión media</option><option value="4">4 - Manejo autónomo</option><option value="5">5 - Perfecto</option>
+            </select>
+            <button type="button" class="btn-eliminar" onclick="this.parentElement.remove()">X</button>
+        `;
+        contenedor.appendChild(div);
+    }
+    
+    function agregarHabilidadBlanda(nombre) {
+        const contenedor = document.getElementById("contenedorBlandas");
+        const div = document.createElement("div"); div.className = "competencia-item blanda-item";
+        div.innerHTML = `
+            <input type="text" class="comp-nombre" value="${nombre}" placeholder="Describa la habilidad o actitud" required />
+            <select class="comp-valor" required>
+                <option value="" disabled selected>Calificación</option>
+                <option value="1">1 - Deficiente</option><option value="2">2 - Regular</option>
+                <option value="3">3 - Aceptable</option><option value="4">4 - Bueno</option><option value="5">5 - Excelente</option>
+            </select>
+            <button type="button" class="btn-eliminar" onclick="this.parentElement.remove()">X</button>
+        `;
+        contenedor.appendChild(div);
+    }
+
+    competenciasTecnicas.forEach(comp => agregarCompetenciaTecnica(comp));
+    habilidadesBlandas.forEach(comp => agregarHabilidadBlanda(comp));
+
+    function setupCanvas(canvasId) {
+        const canvas = document.getElementById(canvasId); const ctx = canvas.getContext("2d"); let pintando = false;
+        ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.strokeStyle = "#004481";
+        const getPos = (evt) => { const rect = canvas.getBoundingClientRect(); return { x: ((evt.touches ? evt.touches[0].clientX : evt.clientX) - rect.left) * (canvas.width / rect.width), y: ((evt.touches ? evt.touches[0].clientY : evt.clientY) - rect.top) * (canvas.height / rect.height) }; };
+        const iniciar = (e) => { e.preventDefault(); pintando = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+        const dibujar = (e) => { e.preventDefault(); if (!pintando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+        const detener = () => pintando = false;
+        canvas.addEventListener("mousedown", iniciar); canvas.addEventListener("mousemove", dibujar); window.addEventListener("mouseup", detener);
+        canvas.addEventListener("touchstart", iniciar, { passive: false }); canvas.addEventListener("touchmove", dibujar, { passive: false }); window.addEventListener("touchend", detener);
+        return { canvas, ctx };
+    }
+    const padJefe = setupCanvas("padJefe"); const canvasJefe = padJefe.canvas; const ctxJefe = padJefe.ctx;
+    const padColaborador = setupCanvas("padColaborador"); const canvasColaborador = padColaborador.canvas; const ctxColaborador = padColaborador.ctx;
+    window.limpiarFirma = (ctx, canvas) => ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const esCanvasVacio = (canvas, ctx) => !ctx.getImageData(0, 0, canvas.width, canvas.height).data.some(c => c !== 0);
+
+    function generarGrafico(labels, scores) {
+        if (radarChart) radarChart.destroy();
+        const labelsCortos = labels.map(l => l.split(":")[0]);
+        radarChart = new Chart(ctxRadar, {
+            type: 'radar',
+            data: { labels: labelsCortos, datasets: [{ label: 'Perfil Integral', data: scores, backgroundColor: 'rgba(0, 68, 129, 0.2)', borderColor: 'rgba(0, 68, 129, 1)', pointBackgroundColor: '#17a2b8', borderWidth: 2 }] },
+            options: { animation: false, responsive: false, scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } }
+        });
+        return document.getElementById('radarChart').toDataURL("image/png", 1.0);
+    }
+
+    document.getElementById("formularioEvaluacion").addEventListener("submit", function(e) {
+        e.preventDefault();
+        
+        const fechaIng = document.getElementById("fechaIngreso").value;
+        const fechaEv = document.getElementById("fechaEval").value;
+        const nombreColab = document.getElementById("nombreColaborador").value;
+        const cargo = document.getElementById("cargo").value;
+        const jefe = document.getElementById("nombreJefe").value;
+
+        let sumaTotal = 0; let cantidadTotal = 0;
+        const labelsChart = []; const scoresChart = [];
+        const filasTablaTecnica = []; const filasTablaBlanda = [];
+        const areasMejora = [];
+
+        document.querySelectorAll(".tecnica-item").forEach((item, index) => {
+            const nombre = item.querySelector(".comp-nombre").value;
+            const val = parseInt(item.querySelector(".comp-valor").value);
+            labelsChart.push(nombre); scoresChart.push(val);
+            sumaTotal += val; cantidadTotal++;
+            filasTablaTecnica.push([index + 1, nombre, val]);
+            if (val <= 3) areasMejora.push(nombre.split(":")[0]);
+        });
+
+        document.querySelectorAll(".blanda-item").forEach((item, index) => {
+            const nombre = item.querySelector(".comp-nombre").value;
+            const val = parseInt(item.querySelector(".comp-valor").value);
+            labelsChart.push(nombre.split(":")[0]); scoresChart.push(val);
+            sumaTotal += val; cantidadTotal++;
+            filasTablaBlanda.push([index + 1, nombre, val]);
+            if (val <= 3) areasMejora.push(nombre.split(":")[0]);
+        });
+
+        const promedioGeneral = cantidadTotal > 0 ? (sumaTotal / cantidadTotal).toFixed(1) : 0;
+
+        let textoAnalisis = "CRITERIOS DE DECISIÓN:\n";
+        textoAnalisis += "- Promedio general aceptado para ratificación: Entre 3.8 y 4.0 (sobre 5.0).\n";
+        textoAnalisis += `- Promedio global obtenido por el colaborador: ${promedioGeneral} / 5.0.\n\n`;
+
+        if (promedioGeneral >= 3.8) {
+            textoAnalisis += "CONCLUSIÓN Y RECOMENDACIÓN:\nSe recomienda la RATIFICACIÓN en el cargo. El colaborador demuestra un desempeño técnico y actitudinal sólido, alineado con la cultura y las exigencias del Sistema de Gestión de Calidad.";
+        } else if (promedioGeneral >= 3.0) {
+            textoAnalisis += "CONCLUSIÓN Y RECOMENDACIÓN:\nSe recomienda RETENCIÓN CONDICIONADA. El colaborador tiene potencial para continuar, pero requiere establecer de inmediato un Plan de Acción y reentrenamiento.";
+            if (areasMejora.length > 0) {
+                textoAnalisis += `\n\nASPECTOS A MEJORAR OBLIGATORIAMENTE (Notas <= 3):\n- ${areasMejora.join("\n- ")}`;
+            }
+        } else {
+            textoAnalisis += "CONCLUSIÓN Y RECOMENDACIÓN:\nNO SE RECOMIENDA la continuidad en el cargo. El colaborador no alcanza las competencias mínimas técnicas ni actitudinales requeridas, representando un riesgo para el proceso y la trazabilidad del producto.";
+        }
+
+        const chartBase64 = generarGrafico(labelsChart, scoresChart);
+        const { jsPDF } = window.jspdf; const doc = new jsPDF("p", "mm", "a4");
+
+        function dibujarEncabezadoYPie(numeroPagina, totalPaginas) {
+            // ENCABEZADO
+            doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.4);
+            doc.rect(10, 10, 190, 24); doc.line(55, 10, 55, 34); doc.line(145, 10, 145, 34);
+            doc.line(145, 18, 200, 18); doc.line(145, 26, 200, 26); doc.line(175, 10, 175, 18);
+            if (logoBase64_PDF) doc.addImage(logoBase64_PDF, "PNG", 13, 13, 39, 18);
+            doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+            doc.text("EVALUACIÓN DE COMPETENCIAS", 100, 20, { align: "center" });
+            doc.text("Y AJUSTE AL CARGO", 100, 26, { align: "center" });
+            doc.setFontSize(8); doc.text("Fecha de", 160, 13, { align: "center" }); doc.text("Actualización", 160, 17, { align: "center" });
+            const fStr = fechaEv.split("-").reverse().join("/");
+            doc.setFont("helvetica", "normal"); doc.text("25/05/2024", 187, 15, { align: "center" });
+            doc.setFont("helvetica", "bold"); doc.text("Código: R-GH-19", 172.5, 23, { align: "center" }); doc.text("Versión: 01", 172.5, 31, { align: "center" });
+
+            // PIE DE PÁGINA (CONTROL DE DOCUMENTOS ISO 13485)
+            doc.setDrawColor(150, 150, 150);
+            doc.line(10, 282, 200, 282);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(6.5);
+            doc.setTextColor(100, 100, 100);
+            doc.text("Documento Controlado | Elaborado por: Alejandro Vivas (Director de Calidad) | Revisado por: Gilma Pardo (Directora Técnica) | Aprobado por: Roberth Vivas (Gerente General)", 10, 287);
+            if (numeroPagina) doc.text(`Página ${numeroPagina} de ${totalPaginas}`, 195, 287, { align: "right" });
+            doc.setTextColor(0, 0, 0); // Restaurar color negro
+        }
+
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text("DATOS DE LA EVALUACIÓN", 10, 43);
+        doc.autoTable({ startY: 46, theme: "plain", styles: { fontSize: 8.5, cellPadding: 1, textColor: [0, 0, 0] }, body: [ [{ content: "Colaborador:", styles: { fontStyle: "bold" } }, nombreColab, { content: "Cargo:", styles: { fontStyle: "bold" } }, cargo], [{ content: "Fecha Ingreso:", styles: { fontStyle: "bold" } }, fechaIng.split("-").reverse().join("/"), { content: "Fecha Eval:", styles: { fontStyle: "bold" } }, fechaEv.split("-").reverse().join("/")], [{ content: "Evaluador:", styles: { fontStyle: "bold" } }, jefe, "", ""] ], margin: { left: 10 } });
+        
+        doc.text("1. RESULTADO TÉCNICO OPERATIVO", 10, doc.lastAutoTable.finalY + 8);
+        doc.autoTable({ startY: doc.lastAutoTable.finalY + 11, theme: "grid", headStyles: { fillColor: [0, 68, 129], textColor: 255 }, columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 150 }, 2: { cellWidth: 30, fontStyle: "bold", halign: "center" } }, head: [["#", "Criterio Técnico (ISO 13485)", "Calificación"]], body: filasTablaTecnica, margin: { left: 10, right: 10 } });
+
+        doc.text("2. RESULTADO HABILIDADES BLANDAS Y ACTITUD", 10, doc.lastAutoTable.finalY + 8);
+        doc.autoTable({ startY: doc.lastAutoTable.finalY + 11, theme: "grid", headStyles: { fillColor: [23, 162, 184], textColor: 255 }, columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 150 }, 2: { cellWidth: 30, fontStyle: "bold", halign: "center" } }, head: [["#", "Criterio Psicosocial", "Calificación"]], body: filasTablaBlanda, margin: { left: 10, right: 10 } });
+
+        let currentY = doc.lastAutoTable.finalY + 10;
+        if (currentY > 120) { doc.addPage(); currentY = 45; }
+        
+        doc.setFont("helvetica", "bold"); doc.text("3. PERFIL INTEGRAL DEL COLABORADOR", 10, currentY); 
+        doc.addImage(chartBase64, 'PNG', 50, currentY + 5, 110, 110); currentY += 120;
+        
+        doc.text("4. DICTAMEN FINAL Y PLAN DE ACCIÓN", 10, currentY); doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+        const lineas = doc.splitTextToSize(textoAnalisis, 185); doc.rect(10, currentY + 3, 190, (lineas.length * 4) + 10); doc.text(lineas, 12, currentY + 9); currentY += (lineas.length * 4) + 25;
+
+        if (currentY > 240) { doc.addPage(); currentY = 50; }
+        doc.setFontSize(10); doc.setFont("helvetica", "bold");
+        if (!esCanvasVacio(canvasJefe, ctxJefe)) doc.addImage(canvasJefe.toDataURL("image/png"), "PNG", 25, currentY, 50, 20); doc.line(20, currentY + 22, 85, currentY + 22); doc.text(jefe, 52.5, currentY + 27, { align: "center" }); doc.setFont("helvetica", "normal"); doc.text("Firma del Evaluador", 52.5, currentY + 32, { align: "center" }); doc.setFont("helvetica", "bold");
+        if (!esCanvasVacio(canvasColaborador, ctxColaborador)) doc.addImage(canvasColaborador.toDataURL("image/png"), "PNG", 125, currentY, 50, 20); doc.line(120, currentY + 22, 185, currentY + 22); doc.text(nombreColab, 152.5, currentY + 27, { align: "center" }); doc.setFont("helvetica", "normal"); doc.text("Firma del Colaborador", 152.5, currentY + 32, { align: "center" });
+
+        // Numerar páginas y poner encabezados/pies
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            dibujarEncabezadoYPie(i, totalPages);
+        }
+
+        doc.save(`evaluacion_${nombreColab.replace(/\s+/g, '_').toLowerCase()}.pdf`);
+    });
+</script>
+
+</body>
+</html>
