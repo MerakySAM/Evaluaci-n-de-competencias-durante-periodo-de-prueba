@@ -1412,12 +1412,13 @@
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10.3);
-      doc.setTextColor(0, 68, 129);
-      doc.text("EVALUACIÓN DE COMPETENCIAS", 100, 19, { align: "center" });
-      doc.text("DURANTE PERIODO DE PRUEBA", 100, 25, { align: "center" });
+      doc.setTextColor(0, 0, 0);
+      doc.text("EVALUACIÓN DE COMPETENCIAS", 100, 20, { align: "center" });
+      doc.text("DURANTE PERIODO DE PRUEBA", 100, 26, { align: "center" });
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.8);
+      doc.setTextColor(0, 0, 0);
       doc.text("Fecha de actualización", 164, 15, { align: "center" });
       doc.text("Código", 164, 23, { align: "center" });
       doc.text("Versión", 164, 31, { align: "center" });
@@ -1427,11 +1428,6 @@
       doc.text(formatearFechaVisual(dataDoc.fechaActualizacion) || "", 191.5, 15, { align: "center" });
       doc.text(dataDoc.codigoDocumento || "", 191.5, 23, { align: "center" });
       doc.text(dataDoc.versionDocumento || "", 191.5, 31, { align: "center" });
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.8);
-      doc.setTextColor(0, 0, 0);
-      doc.text("Meraky", 100, 30, { align: "center" });
     }
 
     function dibujarFooter(doc, dataDoc, page, totalPages) {
